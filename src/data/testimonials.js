@@ -1,0 +1,42 @@
+export const testimonials = [
+  {
+    id: 1,
+    name: 'James Anderson',
+    location: 'London, UK',
+    quote: 'The Solaris is the most beautiful watch I\'ve ever owned. The craftsmanship is exceptional — every detail speaks of true luxury.',
+    rating: 5,
+    avatar: 'JA',
+  },
+  {
+    id: 2,
+    name: 'Sofia Moretti',
+    location: 'Milan, Italy',
+    quote: 'AURELIS Première was my first luxury watch. The quality at this price is unmatched. I\'ve already ordered the Nocturne.',
+    rating: 5,
+    avatar: 'SM',
+  },
+  {
+    id: 3,
+    name: 'David Kim',
+    location: 'New York, USA',
+    quote: 'Wore my Nocturne to a gala and received nothing but compliments all evening. It\'s the perfect dress watch.',
+    rating: 5,
+    avatar: 'DK',
+  },
+  {
+    id: 4,
+    name: 'Aisha Rahman',
+    location: 'Dubai, UAE',
+    quote: 'The Meridian is my travel companion. Elegant, practical, and absolutely stunning on the wrist. Worth every penny.',
+    rating: 5,
+    avatar: 'AR',
+  },
+  {
+    id: 5,
+    name: 'Marcus Thompson',
+    location: 'Sydney, Australia',
+    quote: 'Titanis lives on my wrist daily. Lightweight, incredibly durable, and gorgeous. It handles everything I throw at it.',
+    rating: 4,
+    avatar: 'MT',
+  },
+]
