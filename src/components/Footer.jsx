@@ -10,7 +10,9 @@ export default function Footer() {
       <div className="container">
         <div className="footer-grid">
           <div className="footer-brand">
-            <a href="#" className="footer-logo">AURELIS</a>
+            <a href="#" className="footer-logo">
+              <img src="/logo.png" alt="Aurelis" style={{ height: '120px', width: 'auto' }} />
+            </a>
             <p className="footer-tagline">
               Where minimalist design meets timeless craftsmanship. Luxury in every second.
             </p>

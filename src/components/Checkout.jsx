@@ -26,13 +26,43 @@ export default function Checkout() {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Simulate processing
-    setTimeout(() => {
-      setIsSuccess(true)
-      clearCart()
-    }, 800)
+    
+    try {
+      // Build the payload expected by our backend
+      const orderPayload = {
+        items: items,
+        customer: {
+          fullName: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+          phone: formData.phone || 'N/A', // Using fallback for now
+          address: formData.address,
+          city: formData.city,
+          zipCode: formData.zip,
+          country: formData.country || 'N/A'
+        }
+      };
+
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+
+      if (response.ok) {
+        // Show success screen and empty the cart
+        setIsSuccess(true);
+        clearCart();
+      } else {
+        const data = await response.json();
+        alert(`Failed to place order: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error placing order:', error);
+      alert('A network error occurred while placing your order.');
+    }
   }
 
   return (
@@ -99,20 +129,21 @@ export default function Checkout() {
               </div>
 
               <div className="payment-section">
-                <h2 className="checkout-section-title">Payment Information</h2>
-                <div className="form-group">
-                  <label className="form-label">Card Number</label>
-                  <input type="text" name="cardNumber" placeholder="0000 0000 0000 0000" className="form-input" required onChange={handleInputChange} maxLength="19" />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Expiry Date</label>
-                    <input type="text" name="expiry" placeholder="MM/YY" className="form-input" required onChange={handleInputChange} maxLength="5" />
+                <h2 className="checkout-section-title">Payment Method</h2>
+                <div className="paystack-option" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <div className="paystack-radio-container" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <input type="radio" checked readOnly id="paystack" name="paymentMethod" style={{ accentColor: 'var(--gold)' }} />
+                    <label htmlFor="paystack" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--white)', cursor: 'pointer', margin: 0 }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                      </svg>
+                      Paystack (Card, Bank Transfer, USSD)
+                    </label>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">CVV</label>
-                    <input type="text" name="cvv" placeholder="123" className="form-input" required onChange={handleInputChange} maxLength="4" />
-                  </div>
+                  <p style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--white-muted)', lineHeight: '1.5' }}>
+                    After clicking "Place Order", you will be securely redirected to Paystack to complete your purchase using your preferred payment method.
+                  </p>
                 </div>
               </div>
               

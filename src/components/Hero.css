@@ -8,7 +8,7 @@
   padding-top: 80px; /* offset navbar */
   background-color: var(--black);
   background-image: url('/hero_bg_silver.png');
-  background-size: cover;
+  background-size: auto 100%;
   background-position: right center;
   background-repeat: no-repeat;
 }
@@ -148,14 +148,21 @@
 /* Mobile */
 @media (max-width: 768px) {
   .hero {
-    min-height: 700px;
-    background-position: 70% center;
+    min-height: 100svh;
+    background-position: center 35%;
+    background-size: auto 65%;
     align-items: flex-end;
     padding-bottom: 60px;
   }
   
   .hero::before {
-    background: linear-gradient(to bottom, rgba(10,10,10,0.5) 0%, var(--black) 70%);
+    background: linear-gradient(
+      to bottom, 
+      rgba(10,10,10,0.15) 0%, 
+      rgba(10,10,10,0.25) 35%,
+      rgba(10,10,10,0.6) 55%, 
+      var(--black) 75%
+    );
   }
 
   .hero-content {

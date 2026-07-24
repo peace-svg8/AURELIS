@@ -1,0 +1,49 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  customerName String
+  email        String
+  phone        String
+  address      String
+  city         String
+  zipCode      String
+  country      String
+  status       String      // e.g., 'PENDING_PAYMENT', 'PAID', 'SHIPPED'
+  totalAmount  Float
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  items        OrderItem[]
+}
+
+model OrderItem {
+  id        Int    @id @default(autoincrement())
+  orderId   Int
+  order     Order  @relation(fields: [orderId], references: [id])
+  watchId   String
+  name      String
+  variant   String
+  price     Float
+  quantity  Int
+}
+
+model Watch {
+  id          String   @id // Using String because frontend uses IDs like '1', '2' but sometimes UUIDs
+  name        String
+  tagline     String?
+  description String?
+  price       Float
+  image       String?
+  style       String?
+  variants    String[] // Prisma supports arrays for PostgreSQL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

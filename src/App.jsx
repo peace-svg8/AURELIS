@@ -7,7 +7,7 @@ import Checkout from './components/Checkout'
 import Testimonials from './components/Testimonials'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
-import ChatWidget from './components/ChatWidget'
+
 import './App.css'
 
 function App() {
@@ -24,7 +24,7 @@ function App() {
       <Footer />
       <Cart />
       <Checkout />
-      <ChatWidget />
+
     </>
   )
 }

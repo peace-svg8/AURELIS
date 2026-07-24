@@ -31,7 +31,9 @@ export default function Navbar() {
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="container nav-container">
-        <a href="#" className="nav-logo">Aurelis</a>
+        <a href="#" className="nav-logo">
+          <img src="/logo.png" alt="Aurelis" style={{ height: '96px', width: 'auto' }} />
+        </a>
         
         <div className="nav-links">
           <a href="#hero" className="nav-link">Home</a>
@@ -66,7 +68,9 @@ export default function Navbar() {
       {/* Mobile Menu Drawer */}
       <div className={`mobile-menu-drawer ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="mobile-menu-header">
-          <span className="nav-logo">Aurelis</span>
+          <span className="nav-logo">
+            <img src="/logo.png" alt="Aurelis" style={{ height: '80px', width: 'auto' }} />
+          </span>
           <button className="close-menu-btn" onClick={() => setIsMobileMenuOpen(false)} aria-label="Close menu">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>

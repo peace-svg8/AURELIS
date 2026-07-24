@@ -54,14 +54,14 @@ export default function Hero() {
         style={{ transform: `translateY(${parallaxOffset}px)` }}
       >
         <h1 className="hero-title">
-          Curators of <br /><span>Excellence</span>
+          Premium Luxury <br /><span>Timepieces</span>
         </h1>
         <p className="hero-subtitle">
-          Discover a hand-selected collection of the world's most extraordinary timepieces.
+          Explore our exclusive collection of authentic, high-end watches designed for those who appreciate true craftsmanship.
         </p>
         <div className="hero-cta">
-          <a href="#collection" className="btn btn-primary">Explore Collection</a>
-          <a href="#collection" className="btn btn-outline">Shop Now</a>
+          <a href="#collection" className="btn btn-primary">Shop Collection</a>
+          <a href="#craftsmanship" className="btn btn-outline">Our Craftsmanship</a>
         </div>
         
         <div className="stats-bar">
