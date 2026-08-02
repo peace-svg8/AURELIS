@@ -7,11 +7,15 @@ const morgan = require('morgan');
 const { PrismaClient } = require('@prisma/client');
 const { body, validationResult } = require('express-validator');
 const Redis = require('ioredis');
+const { Resend } = require('resend');
 
 // Prisma client initialization
 const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Resend initialization
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Redis initialization (graceful fallback if REDIS_URL is not provided)
 let redis = null;
@@ -200,6 +204,49 @@ app.post('/api/orders',
           items: true
         }
       });
+
+      // --- SEND EMAIL RECEIPT ---
+      if (process.env.RESEND_API_KEY) {
+        try {
+          await resend.emails.send({
+            from: 'Aurelis Watches <onboarding@resend.dev>',
+            to: customer.email,
+            subject: `Order Confirmation - Aurelis (#${newOrder.id})`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                <h1 style="color: #c9a96e; text-align: center;">AURELIS</h1>
+                <h2>Thank you for your order, ${customer.fullName}!</h2>
+                <p>We are processing your order and will notify you when it ships.</p>
+                <h3>Order Summary (ID: ${newOrder.id})</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  ${validOrderItems.map(item => `
+                    <tr>
+                      <td style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                        <strong>${item.name}</strong> (${item.variant}) x ${item.quantity}
+                      </td>
+                      <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">
+                        $${(item.price * item.quantity).toLocaleString()}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </table>
+                <h3 style="text-align: right; color: #c9a96e; margin-top: 20px;">
+                  Total: $${secureTotalAmount.toLocaleString()}
+                </h3>
+                <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
+                  Aurelis Luxury Watches<br>
+                  ${customer.address}, ${customer.city}, ${customer.zipCode}
+                </p>
+              </div>
+            `
+          });
+          console.log(`Receipt email sent to ${customer.email} for order ${newOrder.id}`);
+        } catch (emailError) {
+          console.error('Failed to send receipt email:', emailError);
+        }
+      } else {
+        console.warn('RESEND_API_KEY not configured. Skipping email receipt.');
+      }
 
       res.status(201).json({ 
         success: true, 
