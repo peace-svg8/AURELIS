@@ -32,6 +32,7 @@ export default function Footer() {
             <h4 className="footer-title">Support</h4>
             <div className="footer-links">
               <a href="#contact" className="footer-link">Contact Us</a>
+              <a href="/track-order" className="footer-link">Track Your Order</a>
               <a href="#" className="footer-link">Shipping Policy</a>
               <a href="#" className="footer-link">Returns & Exchanges</a>
               <a href="#" className="footer-link">Warranty</a>

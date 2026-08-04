@@ -35,7 +35,7 @@ if (process.env.REDIS_URL) {
 app.use(helmet());
 
 // 2. CORS (Restrict to frontend domain)
-const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'];
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
@@ -257,6 +257,197 @@ app.post('/api/orders',
       console.error('Error creating order:', error);
       res.status(500).json({ error: 'An error occurred while placing the order.' });
     }
+});
+
+// Endpoint for Contact Form inquiries
+app.post('/api/contact', [
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('subject').trim().notEmpty().withMessage('Subject is required'),
+  body('message').trim().notEmpty().withMessage('Message is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { name, email, subject, message } = req.body;
+
+    if (process.env.RESEND_API_KEY) {
+      // NOTE: With a free Resend account, you can only send emails to the email address 
+      // you verified on Resend. So the 'to' address below should ideally be your own email.
+      // We are using the customer's email here just for the sake of the demo, but it might bounce 
+      // if you haven't verified a domain.
+      await resend.emails.send({
+        from: 'Aurelis Watches <onboarding@resend.dev>',
+        to: email, 
+        subject: `New Inquiry: ${subject} - from ${name}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <h2 style="color: #c9a96e;">Aurelis Contact Form Inquiry</h2>
+            <p><strong>From:</strong> ${name} (${email})</p>
+            <p><strong>Subject:</strong> ${subject}</p>
+            <hr />
+            <p style="white-space: pre-wrap;">${message}</p>
+          </div>
+        `
+      });
+      console.log(`Contact inquiry sent from ${email}`);
+    } else {
+      console.warn('RESEND_API_KEY not configured. Skipping contact inquiry email.');
+    }
+
+    res.status(200).json({ success: true, message: 'Your inquiry has been sent successfully.' });
+  } catch (error) {
+    console.error('Error sending contact inquiry:', error);
+    res.status(500).json({ error: 'Failed to send inquiry.' });
+  }
+});
+
+// --- ORDER TRACKING ---
+app.get('/api/orders/track', async (req, res) => {
+  try {
+    const { email, orderId } = req.query;
+
+    if (!email || !orderId) {
+      return res.status(400).json({ error: 'Both email and order ID are required.' });
+    }
+
+    const order = await prisma.order.findFirst({
+      where: {
+        id: parseInt(orderId),
+        email: email.toLowerCase()
+      },
+      include: { items: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'No order found with that ID and email combination.' });
+    }
+
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error('Error tracking order:', error);
+    res.status(500).json({ error: 'Failed to track order.' });
+  }
+});
+
+// --- ADMIN AUTH ---
+const crypto = require('crypto');
+const ADMIN_TOKEN = crypto.randomBytes(32).toString('hex');
+
+app.post('/api/admin/login', [
+  body('password').notEmpty().withMessage('Password is required')
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { password } = req.body;
+  if (password === process.env.ADMIN_PASSWORD) {
+    res.json({ success: true, token: ADMIN_TOKEN });
+  } else {
+    res.status(401).json({ error: 'Invalid password.' });
+  }
+});
+
+// Admin middleware
+const requireAdmin = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${ADMIN_TOKEN}`) {
+    return res.status(401).json({ error: 'Unauthorized.' });
+  }
+  next();
+};
+
+// Admin: Get all orders
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
+  try {
+    const orders = await prisma.order.findMany({
+      include: { items: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, orders });
+  } catch (error) {
+    console.error('Failed to fetch admin orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders.' });
+  }
+});
+
+// Admin: Update order status
+app.patch('/api/admin/orders/:id', requireAdmin, [
+  body('status').trim().notEmpty().withMessage('Status is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['PENDING_PAYMENT', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    const updatedOrder = await prisma.order.update({
+      where: { id: parseInt(id) },
+      data: { status },
+      include: { items: true }
+    });
+
+    res.json({ success: true, order: updatedOrder });
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: 'Failed to update order.' });
+  }
+});
+
+// --- REVIEWS ---
+app.get('/api/reviews/:watchId', async (req, res) => {
+  try {
+    const { watchId } = req.params;
+    const reviews = await prisma.review.findMany({
+      where: { watchId },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, reviews });
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({ error: 'Failed to fetch reviews.' });
+  }
+});
+
+app.post('/api/reviews', [
+  body('watchId').trim().notEmpty().withMessage('Watch ID is required'),
+  body('customerName').trim().notEmpty().withMessage('Name is required'),
+  body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5'),
+  body('comment').trim().notEmpty().withMessage('Comment is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { watchId, customerName, rating, comment } = req.body;
+    const review = await prisma.review.create({
+      data: {
+        watchId: watchId.toString(),
+        customerName,
+        rating: parseInt(rating),
+        comment
+      }
+    });
+    res.status(201).json({ success: true, review });
+  } catch (error) {
+    console.error('Error creating review:', error);
+    res.status(500).json({ error: 'Failed to submit review.' });
+  }
 });
 
 // --- Server Startup & Graceful Shutdown ---

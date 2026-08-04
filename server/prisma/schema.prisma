@@ -46,4 +46,15 @@ model Watch {
   variants    String[] // Prisma supports arrays for PostgreSQL
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  reviews     Review[]
+}
+
+model Review {
+  id           Int      @id @default(autoincrement())
+  watchId      String
+  watch        Watch    @relation(fields: [watchId], references: [id])
+  customerName String
+  rating       Int      // 1-5
+  comment      String
+  createdAt    DateTime @default(now())
 }

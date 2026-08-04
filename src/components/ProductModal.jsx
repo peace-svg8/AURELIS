@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useCart } from '../context/CartContext'
+import ReviewSection from './ReviewSection'
 import './ProductModal.css'
 
 export default function ProductModal({ watch, onClose }) {
@@ -149,6 +150,8 @@ export default function ProductModal({ watch, onClose }) {
               Add to Cart
             </button>
           </div>
+
+          <ReviewSection watchId={watch.id} />
         </div>
       </div>
     </div>

@@ -1,0 +1,293 @@
+.track-page {
+  min-height: 100vh;
+  background: var(--black);
+  color: var(--white);
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.track-container {
+  max-width: 700px;
+  width: 100%;
+  padding: 2rem 0;
+}
+
+.track-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--white-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+  transition: color 0.3s;
+}
+.track-back-link:hover {
+  color: var(--gold);
+}
+
+.track-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.track-logo {
+  font-family: 'Cinzel', serif;
+  font-size: 1.8rem;
+  color: var(--gold);
+  letter-spacing: 6px;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 1rem;
+}
+.track-header h1 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.6rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+.track-header p {
+  color: var(--white-muted);
+  font-size: 0.95rem;
+}
+
+/* Form */
+.track-form {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.track-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.track-form-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--white-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+.track-form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: var(--white);
+  font-size: 0.95rem;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+}
+.track-form-group input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.track-submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--gold);
+  color: var(--black);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+.track-submit-btn:hover { opacity: 0.9; }
+.track-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Error */
+.track-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem;
+  background: rgba(217, 48, 37, 0.1);
+  border: 1px solid rgba(217, 48, 37, 0.3);
+  border-radius: 8px;
+  color: #ff6b6b;
+  margin-bottom: 2rem;
+}
+
+/* Result */
+.track-result {
+  animation: fadeInUp 0.5s ease;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.track-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.track-result-header h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 1.3rem;
+  margin-bottom: 4px;
+}
+.track-date {
+  color: var(--white-muted);
+  font-size: 0.85rem;
+}
+.track-status-badge {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.track-status-badge.pending-payment { background: rgba(255,193,7,0.15); color: #ffc107; }
+.track-status-badge.processing { background: rgba(33,150,243,0.15); color: #64b5f6; }
+.track-status-badge.shipped { background: rgba(156,39,176,0.15); color: #ce93d8; }
+.track-status-badge.delivered { background: rgba(76,175,80,0.15); color: #81c784; }
+.track-status-badge.cancelled { background: rgba(244,67,54,0.15); color: #ef5350; }
+
+/* Progress Stepper */
+.track-progress {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+  position: relative;
+}
+.track-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+}
+.step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s ease;
+  position: relative;
+  z-index: 2;
+}
+.track-step.completed .step-dot {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--black);
+}
+.track-step.current .step-dot {
+  box-shadow: 0 0 0 4px rgba(201,169,110,0.3);
+}
+.step-line {
+  position: absolute;
+  top: 16px;
+  left: calc(50% + 16px);
+  width: calc(100% - 32px);
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  z-index: 1;
+}
+.step-line.filled {
+  background: var(--gold);
+}
+.step-label {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: var(--white-muted);
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+.track-step.completed .step-label { color: var(--gold); }
+
+.track-cancelled {
+  text-align: center;
+  padding: 1.5rem;
+  background: rgba(244,67,54,0.08);
+  border: 1px solid rgba(244,67,54,0.2);
+  border-radius: 10px;
+  color: #ef5350;
+  margin-bottom: 2rem;
+}
+
+/* Items */
+.track-items {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.track-items h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: var(--gold);
+}
+.track-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.track-item:last-of-type { border-bottom: none; }
+.track-item-name {
+  font-weight: 500;
+  display: block;
+}
+.track-item-variant {
+  font-size: 0.85rem;
+  color: var(--white-muted);
+}
+.track-item-price {
+  font-weight: 500;
+  color: var(--white);
+}
+.track-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--gold);
+}
+
+/* Shipping */
+.track-shipping {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.track-shipping h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: var(--gold);
+}
+.track-shipping p {
+  color: var(--white-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .track-form-row { grid-template-columns: 1fr; }
+  .track-result-header { flex-direction: column; gap: 12px; }
+  .step-label { font-size: 0.65rem; }
+}
