@@ -424,7 +424,7 @@ app.post('/api/admin/login', adminLoginLimiter, [
     res.cookie('admin_token', ADMIN_TOKEN, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000 // 1 day
     });
     res.json({ success: true });
