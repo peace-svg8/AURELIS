@@ -1,9 +1,21 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 
 const CartContext = createContext()
 
 export function CartProvider({ children }) {
-  const [items, setItems] = useState([])
+  const [items, setItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('aurelis_cart')
+      return saved ? JSON.parse(saved) : []
+    } catch (e) {
+      return []
+    }
+  })
+  
+  useEffect(() => {
+    localStorage.setItem('aurelis_cart', JSON.stringify(items))
+  }, [items])
+
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
 

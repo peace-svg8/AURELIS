@@ -1,6 +1,27 @@
+import { useState } from 'react'
+import toast from 'react-hot-toast'
 import './Footer.css'
 
 export default function Footer() {
+  const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(() => {
+    return localStorage.getItem('aurelis_subscribed') === 'true'
+  })
+
+  const handleSubscribe = (e) => {
+    e.preventDefault()
+    if (subscribed) {
+      toast.error('You are already subscribed to our newsletter.')
+      return
+    }
+    if (email) {
+      localStorage.setItem('aurelis_subscribed', 'true')
+      setSubscribed(true)
+      toast.success('Thank you for subscribing to Aurelis.')
+      setEmail('')
+    }
+  }
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -44,15 +65,25 @@ export default function Footer() {
             <p className="footer-tagline" style={{ fontSize: '0.85rem' }}>
               Subscribe to receive exclusive access to limited editions and brand news.
             </p>
-            <form className="newsletter-form" onSubmit={(e) => e.preventDefault()}>
-              <input type="email" className="newsletter-input" placeholder="Email address" required />
-              <button type="submit" className="newsletter-btn">Join</button>
+            <form className="newsletter-form" onSubmit={handleSubscribe}>
+              <input 
+                type="email" 
+                className="newsletter-input" 
+                placeholder={subscribed ? "Already subscribed" : "Email address"} 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={subscribed}
+              />
+              <button type="submit" className="newsletter-btn" disabled={subscribed}>
+                {subscribed ? 'Joined' : 'Join'}
+              </button>
             </form>
           </div>
         </div>
         
         <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} AURELIS. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} AURELIS. All rights reserved. <span style={{ opacity: 0.5 }}>|</span> <a href="/admin" style={{ color: 'inherit', textDecoration: 'none', opacity: 0.7 }}>Admin</a></p>
           <button className="back-to-top" onClick={scrollToTop}>
             Back to top
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

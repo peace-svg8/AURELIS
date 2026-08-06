@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const { PrismaClient } = require('@prisma/client');
 const { body, validationResult } = require('express-validator');
 const Redis = require('ioredis');
@@ -34,12 +35,13 @@ if (process.env.REDIS_URL) {
 // 1. Security Headers (Helmet)
 app.use(helmet());
 
-// 2. CORS (Restrict to frontend domain)
+// 2. CORS (Restrict to frontend domain and allow credentials)
 const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'];
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
 app.use(cors({
+  credentials: true,
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) === -1) {
@@ -51,6 +53,7 @@ app.use(cors({
 }));
 
 // 3. Rate Limiting (Prevent DDoS/spam)
+app.set('trust proxy', 1); // Trust the first proxy (e.g. Render) to get real client IP
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -60,7 +63,36 @@ app.use('/api/', apiLimiter);
 
 // 4. Logging
 app.use(morgan('combined'));
-app.use(express.json());
+
+// --- PAYSTACK WEBHOOK (Must be before express.json) ---
+app.post('/api/webhooks/paystack', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    // Paystack signature check
+    const crypto = require('crypto');
+    // req.body is a Buffer because of express.raw
+    const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY || '').update(req.body).digest('hex');
+    
+    if (hash === req.headers['x-paystack-signature']) {
+      const event = JSON.parse(req.body.toString());
+      if (event.event === 'charge.success') {
+        const reference = event.data.reference;
+        await prisma.order.update({
+          where: { paystackRef: reference },
+          data: { status: 'PROCESSING' }
+        });
+        console.log(`Order with Paystack ref ${reference} marked as PROCESSING.`);
+      }
+    }
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Paystack Webhook error:', error);
+    res.sendStatus(500);
+  }
+});
+
+// Parsers for all other routes
+app.use(express.json({ limit: '10kb' }));
+app.use(cookieParser());
 
 // --- Endpoints ---
 
@@ -113,7 +145,7 @@ app.get('/api', (req, res) => {
   res.json({ message: 'Aurelis Backend API is running securely' });
 });
 
-app.get('/api/orders', async (req, res) => {
+app.get('/api/orders', requireAdmin, async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       include: { items: true },
@@ -205,6 +237,41 @@ app.post('/api/orders',
         }
       });
 
+      // Initialize Paystack transaction
+      let authorization_url = null;
+      if (process.env.PAYSTACK_SECRET_KEY && process.env.PAYSTACK_SECRET_KEY !== 'sk_test_PLACEHOLDER_REPLACE_ME_LATER') {
+        try {
+          // Dynamically import node-fetch if global fetch is not available (Node < 18), but global fetch is standard in Node 18+
+          const fetchObj = typeof fetch !== 'undefined' ? fetch : (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+          const paystackResponse = await fetchObj('https://api.paystack.co/transaction/initialize', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: customer.email,
+              amount: Math.round(secureTotalAmount * 100), // Paystack expects amount in kobo/cents
+              reference: `AURELIS_${newOrder.id}_${Date.now()}`,
+              callback_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-success`
+            })
+          });
+          const paystackData = await paystackResponse.json();
+          if (paystackData.status) {
+            authorization_url = paystackData.data.authorization_url;
+            // Update order with paystackRef
+            await prisma.order.update({
+              where: { id: newOrder.id },
+              data: { paystackRef: paystackData.data.reference }
+            });
+          } else {
+            console.error('Paystack initialization failed:', paystackData);
+          }
+        } catch (paystackError) {
+          console.error('Paystack API error:', paystackError);
+        }
+      }
+
       // --- SEND EMAIL RECEIPT ---
       if (process.env.RESEND_API_KEY) {
         try {
@@ -251,7 +318,8 @@ app.post('/api/orders',
       res.status(201).json({ 
         success: true, 
         message: 'Order created securely. Prices verified by database.',
-        orderId: newOrder.id 
+        orderId: newOrder.id,
+        authorization_url
       });
     } catch (error) {
       console.error('Error creating order:', error);
@@ -337,7 +405,13 @@ app.get('/api/orders/track', async (req, res) => {
 const crypto = require('crypto');
 const ADMIN_TOKEN = crypto.randomBytes(32).toString('hex');
 
-app.post('/api/admin/login', [
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many login attempts from this IP, please try again after 15 minutes' }
+});
+
+app.post('/api/admin/login', adminLoginLimiter, [
   body('password').notEmpty().withMessage('Password is required')
 ], (req, res) => {
   const errors = validationResult(req);
@@ -347,29 +421,68 @@ app.post('/api/admin/login', [
 
   const { password } = req.body;
   if (password === process.env.ADMIN_PASSWORD) {
-    res.json({ success: true, token: ADMIN_TOKEN });
+    res.cookie('admin_token', ADMIN_TOKEN, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+    res.json({ success: true });
   } else {
     res.status(401).json({ error: 'Invalid password.' });
   }
 });
 
+app.post('/api/admin/logout', (req, res) => {
+  res.clearCookie('admin_token');
+  res.json({ success: true });
+});
+
+app.get('/api/admin/me', (req, res) => {
+  const token = req.cookies.admin_token;
+  if (token === ADMIN_TOKEN) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+});
+
 // Admin middleware
-const requireAdmin = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== `Bearer ${ADMIN_TOKEN}`) {
+function requireAdmin(req, res, next) {
+  const token = req.cookies.admin_token;
+  if (!token || token !== ADMIN_TOKEN) {
     return res.status(401).json({ error: 'Unauthorized.' });
   }
   next();
-};
+}
 
-// Admin: Get all orders
+// Admin: Get all orders (paginated)
 app.get('/api/admin/orders', requireAdmin, async (req, res) => {
   try {
-    const orders = await prisma.order.findMany({
-      include: { items: true },
-      orderBy: { createdAt: 'desc' }
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [orders, totalOrders] = await Promise.all([
+      prisma.order.findMany({
+        skip,
+        take: limit,
+        include: { items: true },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.order.count()
+    ]);
+
+    res.json({ 
+      success: true, 
+      orders,
+      pagination: {
+        total: totalOrders,
+        page,
+        limit,
+        totalPages: Math.ceil(totalOrders / limit)
+      }
     });
-    res.json({ success: true, orders });
   } catch (error) {
     console.error('Failed to fetch admin orders:', error);
     res.status(500).json({ error: 'Failed to fetch orders.' });

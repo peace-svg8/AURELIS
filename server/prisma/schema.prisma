@@ -19,6 +19,7 @@ model Order {
   country      String
   status       String      // e.g., 'PENDING_PAYMENT', 'PAID', 'SHIPPED'
   totalAmount  Float
+  paystackRef  String?     @unique
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   items        OrderItem[]

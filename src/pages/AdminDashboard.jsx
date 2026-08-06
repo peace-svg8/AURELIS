@@ -2,15 +2,29 @@ import { useState, useEffect } from 'react'
 import './AdminDashboard.css'
 
 export default function AdminDashboard() {
-  const [token, setToken] = useState(sessionStorage.getItem('admin_token') || '')
-  const [isLoggedIn, setIsLoggedIn] = useState(!!sessionStorage.getItem('admin_token'))
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(false)
   const [updatingId, setUpdatingId] = useState(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const API_URL = import.meta.env.VITE_API_URL || ''
+
+  useEffect(() => {
+    // Check if logged in on mount
+    const checkAuth = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/admin/me`, { credentials: 'include' })
+        if (res.ok) setIsLoggedIn(true)
+      } catch (err) {
+        console.error('Failed to check auth:', err)
+      }
+    }
+    checkAuth()
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -19,12 +33,11 @@ export default function AdminDashboard() {
       const res = await fetch(`${API_URL}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ password })
       })
       const data = await res.json()
       if (res.ok) {
-        setToken(data.token)
-        sessionStorage.setItem('admin_token', data.token)
         setIsLoggedIn(true)
       } else {
         setLoginError(data.error || 'Login failed.')
@@ -34,9 +47,12 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('admin_token')
-    setToken('')
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_URL}/api/admin/logout`, { method: 'POST', credentials: 'include' })
+    } catch (err) {
+      console.error(err)
+    }
     setIsLoggedIn(false)
     setOrders([])
   }
@@ -44,15 +60,18 @@ export default function AdminDashboard() {
   const fetchOrders = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/api/admin/orders`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch(`${API_URL}/api/admin/orders?page=${page}&limit=10`, {
+        credentials: 'include'
       })
       if (res.status === 401) {
         handleLogout()
         return
       }
       const data = await res.json()
-      if (data.success) setOrders(data.orders)
+      if (data.success) {
+        setOrders(data.orders)
+        if (data.pagination) setTotalPages(data.pagination.totalPages)
+      }
     } catch (err) {
       console.error('Failed to fetch orders:', err)
     }
@@ -60,18 +79,16 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    if (isLoggedIn && token) fetchOrders()
-  }, [isLoggedIn])
+    if (isLoggedIn) fetchOrders()
+  }, [isLoggedIn, page])
 
   const updateStatus = async (orderId, newStatus) => {
     setUpdatingId(orderId)
     try {
       const res = await fetch(`${API_URL}/api/admin/orders/${orderId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status: newStatus })
       })
       if (res.ok) {
@@ -231,6 +248,27 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {totalPages > 1 && (
+            <div className="admin-pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '20px', padding: '16px 0', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button 
+                className="btn btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '0.9rem', backgroundColor: 'transparent', border: '1px solid var(--white-muted)', color: 'var(--white)' }}
+                onClick={() => setPage(p => Math.max(1, p - 1))} 
+                disabled={page === 1}
+              >
+                Previous
+              </button>
+              <span style={{ fontSize: '0.9rem', color: 'var(--white-muted)' }}>Page {page} of {totalPages}</span>
+              <button 
+                className="btn btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '0.9rem', backgroundColor: 'transparent', border: '1px solid var(--white-muted)', color: 'var(--white)' }}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                disabled={page === totalPages}
+              >
+                Next
+              </button>
             </div>
           )}
         </div>

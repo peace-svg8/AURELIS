@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Craftsmanship from './components/Craftsmanship'
@@ -10,6 +11,8 @@ import Contact from './components/Contact'
 import Footer from './components/Footer'
 import OrderTracking from './pages/OrderTracking'
 import AdminDashboard from './pages/AdminDashboard'
+import OrderSuccess from './pages/OrderSuccess'
+import NotFound from './pages/NotFound'
 
 import './App.css'
 
@@ -33,11 +36,16 @@ function Storefront() {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Storefront />} />
-      <Route path="/track-order" element={<OrderTracking />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-    </Routes>
+    <>
+      <Toaster position="top-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
+      <Routes>
+        <Route path="/" element={<Storefront />} />
+        <Route path="/track-order" element={<OrderTracking />} />
+        <Route path="/order-success" element={<OrderSuccess />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   )
 }
 

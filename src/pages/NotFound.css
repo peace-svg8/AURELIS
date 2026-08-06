@@ -1,0 +1,46 @@
+/* NotFound.css */
+.not-found-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--black);
+  color: var(--white);
+  text-align: center;
+  padding: 20px;
+}
+
+.not-found-content {
+  max-width: 600px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  padding: 60px 40px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glow);
+}
+
+.not-found-title {
+  font-family: var(--font-heading);
+  font-size: clamp(4rem, 10vw, 8rem);
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.not-found-subtitle {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.not-found-desc {
+  color: var(--white-muted);
+  font-size: 1.1rem;
+  margin-bottom: 40px;
+}
+
+.not-found-btn {
+  text-decoration: none;
+}

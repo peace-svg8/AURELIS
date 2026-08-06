@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useCart } from '../context/CartContext'
+import toast from 'react-hot-toast'
 import './Checkout.css'
 
 export default function Checkout() {
   const { isCheckoutOpen, setIsCheckoutOpen, items, subtotal, clearCart } = useCart()
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', email: '',
+    firstName: '', lastName: '', email: '', phone: '',
     address: '', city: '', zip: '',
     cardNumber: '', expiry: '', cvv: ''
   })
@@ -16,7 +18,10 @@ export default function Checkout() {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'auto'
-      if (isSuccess) setIsSuccess(false) // Reset on close
+      if (isSuccess || isSubmitting) {
+        setIsSuccess(false)
+        setIsSubmitting(false)
+      }
     }
   }, [isCheckoutOpen, isSuccess])
 
@@ -28,6 +33,8 @@ export default function Checkout() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (isSubmitting) return;
+    setIsSubmitting(true)
     
     try {
       // Build the payload expected by our backend
@@ -52,16 +59,24 @@ export default function Checkout() {
       });
 
       if (response.ok) {
-        // Show success screen and empty the cart
-        setIsSuccess(true);
+        const data = await response.json();
         clearCart();
+        if (data.authorization_url) {
+          window.location.href = data.authorization_url;
+        } else {
+          // Show fallback success screen if no payment url (e.g., test mode offline)
+          setIsSuccess(true);
+          setIsSubmitting(false);
+        }
       } else {
         const data = await response.json();
-        alert(`Failed to place order: ${data.error}`);
+        toast.error(`Failed to place order: ${data.error}`);
+        setIsSubmitting(false);
       }
     } catch (error) {
       console.error('Error placing order:', error);
-      alert('A network error occurred while placing your order.');
+      toast.error('A network error occurred while placing your order.');
+      setIsSubmitting(false);
     }
   }
 
@@ -107,9 +122,15 @@ export default function Checkout() {
                 </div>
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Email Address</label>
-                <input type="email" name="email" className="form-input" required onChange={handleInputChange} />
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Email Address</label>
+                  <input type="email" name="email" className="form-input" required onChange={handleInputChange} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Phone Number</label>
+                  <input type="tel" name="phone" className="form-input" required onChange={handleInputChange} />
+                </div>
               </div>
               
               <div className="form-group">
@@ -147,8 +168,8 @@ export default function Checkout() {
                 </div>
               </div>
               
-              <button type="submit" className="btn btn-primary place-order-btn">
-                Place Order — ${subtotal.toLocaleString()}
+              <button type="submit" className="btn btn-primary place-order-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Processing...' : `Place Order — $${subtotal.toLocaleString()}`}
               </button>
             </form>
 
