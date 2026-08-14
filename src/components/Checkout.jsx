@@ -169,7 +169,7 @@ export default function Checkout() {
               </div>
               
               <button type="submit" className="btn btn-primary place-order-btn" disabled={isSubmitting}>
-                {isSubmitting ? 'Processing...' : `Place Order — $${subtotal.toLocaleString()}`}
+                {isSubmitting ? 'Processing...' : `Place Order — ₦${subtotal.toLocaleString()}`}
               </button>
             </form>
 
@@ -185,7 +185,7 @@ export default function Checkout() {
                       <p className="summary-item-price">{item.variant} x {item.quantity}</p>
                     </div>
                     <div className="summary-item-price" style={{ alignSelf: 'center', color: 'var(--white)' }}>
-                      ${(item.price * item.quantity).toLocaleString()}
+                      ₦{(item.price * item.quantity).toLocaleString()}
                     </div>
                   </div>
                 ))}
@@ -194,11 +194,11 @@ export default function Checkout() {
               <div className="summary-totals">
                 <div className="cart-summary-row">
                   <span>Subtotal</span>
-                  <span>${subtotal.toLocaleString()}</span>
+                  <span>₦{subtotal.toLocaleString()}</span>
                 </div>
                 <div className="cart-summary-row">
                   <span>Taxes (Estimated)</span>
-                  <span>$0.00</span>
+                  <span>₦0.00</span>
                 </div>
                 <div className="cart-summary-row">
                   <span>Shipping</span>
@@ -206,7 +206,7 @@ export default function Checkout() {
                 </div>
                 <div className="cart-total" style={{ marginTop: '24px' }}>
                   <span>Total</span>
-                  <span style={{ color: 'var(--gold)' }}>${subtotal.toLocaleString()}</span>
+                  <span style={{ color: 'var(--gold)' }}>₦{subtotal.toLocaleString()}</span>
                 </div>
               </div>
               

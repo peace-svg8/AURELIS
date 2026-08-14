@@ -99,7 +99,7 @@ export default function ProductModal({ watch, onClose }) {
         <div className="modal-details">
           <h2 className="modal-title section-title">{watch.name}</h2>
           <p className="modal-tagline">{watch.tagline}</p>
-          <p className="modal-price">${watch.price.toLocaleString()}</p>
+          <p className="modal-price">₦{watch.price.toLocaleString()}</p>
           
           {/* Romance Copy */}
           {watch.description && (

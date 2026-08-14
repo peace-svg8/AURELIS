@@ -266,9 +266,13 @@ app.post('/api/orders',
             });
           } else {
             console.error('Paystack initialization failed:', paystackData);
+            await prisma.order.delete({ where: { id: newOrder.id } });
+            return res.status(502).json({ error: 'Payment gateway failed to initialize. Please try again later.' });
           }
         } catch (paystackError) {
           console.error('Paystack API error:', paystackError);
+          await prisma.order.delete({ where: { id: newOrder.id } });
+          return res.status(502).json({ error: 'Network error communicating with payment gateway. Please try again.' });
         }
       }
 
@@ -292,13 +296,13 @@ app.post('/api/orders',
                         <strong>${item.name}</strong> (${item.variant}) x ${item.quantity}
                       </td>
                       <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">
-                        $${(item.price * item.quantity).toLocaleString()}
+                        ₦${(item.price * item.quantity).toLocaleString()}
                       </td>
                     </tr>
                   `).join('')}
                 </table>
                 <h3 style="text-align: right; color: #c9a96e; margin-top: 20px;">
-                  Total: $${secureTotalAmount.toLocaleString()}
+                  Total: ₦${secureTotalAmount.toLocaleString()}
                 </h3>
                 <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
                   Aurelis Luxury Watches<br>

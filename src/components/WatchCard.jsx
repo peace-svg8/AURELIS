@@ -12,7 +12,7 @@ export default function WatchCard({ watch, onClick }) {
       <div className="card-content">
         <h3 className="card-title">{watch.name}</h3>
         <p className="card-tagline">{watch.tagline}</p>
-        <p className="card-price">${watch.price.toLocaleString()}</p>
+        <p className="card-price">₦{watch.price.toLocaleString()}</p>
         <button className="btn btn-outline card-btn">View Details</button>
       </div>
     </div>

@@ -151,12 +151,12 @@ export default function OrderTracking() {
                     <span className="track-item-name">{item.name}</span>
                     <span className="track-item-variant">{item.variant} × {item.quantity}</span>
                   </div>
-                  <span className="track-item-price">${(item.price * item.quantity).toLocaleString()}</span>
+                  <span className="track-item-price">₦{(item.price * item.quantity).toLocaleString()}</span>
                 </div>
               ))}
               <div className="track-total">
                 <span>Total</span>
-                <span>${order.totalAmount.toLocaleString()}</span>
+                <span>₦{order.totalAmount.toLocaleString()}</span>
               </div>
             </div>
 
