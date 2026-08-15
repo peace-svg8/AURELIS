@@ -76,11 +76,88 @@ app.post('/api/webhooks/paystack', express.raw({ type: 'application/json' }), as
       const event = JSON.parse(req.body.toString());
       if (event.event === 'charge.success') {
         const reference = event.data.reference;
-        await prisma.order.update({
-          where: { paystackRef: reference },
-          data: { status: 'PROCESSING' }
-        });
-        console.log(`Order with Paystack ref ${reference} marked as PROCESSING.`);
+        const amount = event.data.amount;
+        
+        // Check if order already exists to prevent duplicate webhooks
+        const existingOrder = await prisma.order.findUnique({ where: { paystackRef: reference } });
+        
+        if (!existingOrder) {
+          const metadata = event.data.metadata || {};
+          const cart = metadata.cart || [];
+          const customer = metadata.customer || {};
+          
+          if (cart.length > 0 && customer.email) {
+            const newOrder = await prisma.order.create({
+              data: {
+                customerName: customer.fullName || 'Unknown',
+                email: customer.email,
+                phone: customer.phone || 'N/A',
+                address: customer.address || 'N/A',
+                city: customer.city || 'N/A',
+                zipCode: customer.zipCode || 'N/A',
+                country: customer.country || 'N/A',
+                status: 'PROCESSING',
+                totalAmount: amount / 100,
+                paystackRef: reference,
+                items: {
+                  create: cart.map(item => ({
+                    watchId: item.watchId,
+                    name: item.name,
+                    variant: item.variant,
+                    price: item.price,
+                    quantity: item.quantity
+                  }))
+                }
+              },
+              include: { items: true }
+            });
+            console.log(`Order ${newOrder.id} created via webhook with Paystack ref ${reference}.`);
+
+            // Send confirmation email after order creation
+            if (process.env.RESEND_API_KEY) {
+              try {
+                await resend.emails.send({
+                  from: 'Aurelis Watches <onboarding@resend.dev>',
+                  to: customer.email,
+                  subject: `Order Confirmation - Aurelis (#${newOrder.id})`,
+                  html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                      <h1 style="color: #c9a96e; text-align: center;">AURELIS</h1>
+                      <h2>Thank you for your order, ${customer.fullName}!</h2>
+                      <p>Your payment has been confirmed and your order is now being processed.</p>
+                      <h3>Order Summary (ID: ${newOrder.id})</h3>
+                      <table style="width: 100%; border-collapse: collapse;">
+                        ${cart.map(item => `
+                          <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #eee;">
+                              <strong>${item.name}</strong> (${item.variant}) x ${item.quantity}
+                            </td>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">
+                              ₦${(item.price * item.quantity).toLocaleString()}
+                            </td>
+                          </tr>
+                        `).join('')}
+                      </table>
+                      <h3 style="text-align: right; color: #c9a96e; margin-top: 20px;">
+                        Total: ₦${(amount / 100).toLocaleString()}
+                      </h3>
+                      <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
+                        Aurelis Luxury Watches
+                      </p>
+                    </div>
+                  `
+                });
+                console.log(`Receipt email sent to ${customer.email} for order ${newOrder.id}`);
+              } catch (emailError) {
+                console.error('Failed to send receipt email:', emailError);
+              }
+            }
+          } else {
+            console.warn(`Webhook charge.success for ref ${reference} missing cart or customer metadata.`);
+          }
+        } else {
+          console.log(`Order with Paystack ref ${reference} already exists. Ignoring duplicate webhook.`);
+        }
       }
     }
     res.sendStatus(200);
@@ -216,32 +293,11 @@ app.post('/api/orders',
         });
       }
 
-      // Create the order
-      const newOrder = await prisma.order.create({
-        data: {
-          customerName: customer.fullName,
-          email: customer.email,
-          phone: customer.phone || 'N/A',
-          address: customer.address,
-          city: customer.city,
-          zipCode: customer.zipCode,
-          country: customer.country || 'N/A',
-          status: 'PENDING_PAYMENT',
-          totalAmount: secureTotalAmount,
-          items: {
-            create: validOrderItems
-          }
-        },
-        include: {
-          items: true
-        }
-      });
-
-      // Initialize Paystack transaction
-      let authorization_url = null;
+      // Initialize Paystack transaction (no DB order created yet)
       if (process.env.PAYSTACK_SECRET_KEY && process.env.PAYSTACK_SECRET_KEY !== 'sk_test_PLACEHOLDER_REPLACE_ME_LATER') {
         try {
-          // Dynamically import node-fetch if global fetch is not available (Node < 18), but global fetch is standard in Node 18+
+          const tempRef = `AURELIS_PAY_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
           const fetchObj = typeof fetch !== 'undefined' ? fetch : (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
           const paystackResponse = await fetchObj('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
@@ -251,80 +307,33 @@ app.post('/api/orders',
             },
             body: JSON.stringify({
               email: customer.email,
-              amount: Math.round(secureTotalAmount * 100), // Paystack expects amount in kobo/cents
-              reference: `AURELIS_${newOrder.id}_${Date.now()}`,
-              callback_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-success`
+              amount: Math.round(secureTotalAmount * 100), // Paystack expects amount in kobo
+              reference: tempRef,
+              callback_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/order-success`,
+              metadata: {
+                cart: validOrderItems,
+                customer: customer
+              }
             })
           });
           const paystackData = await paystackResponse.json();
           if (paystackData.status) {
-            authorization_url = paystackData.data.authorization_url;
-            // Update order with paystackRef
-            await prisma.order.update({
-              where: { id: newOrder.id },
-              data: { paystackRef: paystackData.data.reference }
+            return res.status(200).json({ 
+              success: true, 
+              message: 'Checkout initialized. Redirecting to payment.',
+              authorization_url: paystackData.data.authorization_url
             });
           } else {
             console.error('Paystack initialization failed:', paystackData);
-            await prisma.order.delete({ where: { id: newOrder.id } });
             return res.status(502).json({ error: 'Payment gateway failed to initialize. Please try again later.' });
           }
         } catch (paystackError) {
           console.error('Paystack API error:', paystackError);
-          await prisma.order.delete({ where: { id: newOrder.id } });
           return res.status(502).json({ error: 'Network error communicating with payment gateway. Please try again.' });
         }
-      }
-
-      // --- SEND EMAIL RECEIPT ---
-      if (process.env.RESEND_API_KEY) {
-        try {
-          await resend.emails.send({
-            from: 'Aurelis Watches <onboarding@resend.dev>',
-            to: customer.email,
-            subject: `Order Confirmation - Aurelis (#${newOrder.id})`,
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                <h1 style="color: #c9a96e; text-align: center;">AURELIS</h1>
-                <h2>Thank you for your order, ${customer.fullName}!</h2>
-                <p>We are processing your order and will notify you when it ships.</p>
-                <h3>Order Summary (ID: ${newOrder.id})</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  ${validOrderItems.map(item => `
-                    <tr>
-                      <td style="padding: 8px 0; border-bottom: 1px solid #eee;">
-                        <strong>${item.name}</strong> (${item.variant}) x ${item.quantity}
-                      </td>
-                      <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">
-                        ₦${(item.price * item.quantity).toLocaleString()}
-                      </td>
-                    </tr>
-                  `).join('')}
-                </table>
-                <h3 style="text-align: right; color: #c9a96e; margin-top: 20px;">
-                  Total: ₦${secureTotalAmount.toLocaleString()}
-                </h3>
-                <p style="margin-top: 30px; font-size: 0.9em; color: #888; text-align: center;">
-                  Aurelis Luxury Watches<br>
-                  ${customer.address}, ${customer.city}, ${customer.zipCode}
-                </p>
-              </div>
-            `
-          });
-          console.log(`Receipt email sent to ${customer.email} for order ${newOrder.id}`);
-        } catch (emailError) {
-          console.error('Failed to send receipt email:', emailError);
-        }
       } else {
-        console.warn('RESEND_API_KEY not configured. Skipping email receipt.');
+        return res.status(500).json({ error: 'Payment gateway is not configured.' });
       }
-
-      res.status(201).json({ 
-        success: true, 
-        message: 'Order created securely. Prices verified by database.',
-        orderId: newOrder.id,
-        authorization_url
-      });
     } catch (error) {
       console.error('Error creating order:', error);
       res.status(500).json({ error: 'An error occurred while placing the order.' });
