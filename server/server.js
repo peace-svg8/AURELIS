@@ -222,6 +222,38 @@ app.get('/api', (req, res) => {
   res.json({ message: 'Aurelis Backend API is running securely' });
 });
 
+// Protected seed endpoint (admin-only, for re-seeding the database)
+app.post('/api/seed', requireAdmin, async (req, res) => {
+  try {
+    const watches = [
+      { id: '1', name: 'Aeterna Solaris', tagline: 'Radiance Redefined', description: 'Forged from 18K gold and engineered for absolute precision.', price: 1899, image: '/watches/solaris.png', style: 'Gold-tone dial, mesh bracelet, flagship', variants: ['Gold Mesh', 'Gold Leather', 'Rose Gold Mesh'] },
+      { id: '2', name: 'Aurora Nocturne', tagline: 'Elegance After Dark', description: 'The ultimate companion for the evening.', price: 1499, image: '/watches/nocturne.png', style: 'Black dial, leather strap, dress watch', variants: ['Black Leather', 'Navy Leather', 'Burgundy Leather'] },
+      { id: '3', name: 'Vanguard Meridian', tagline: 'Command Every Timezone', description: 'Built for the modern traveler.', price: 1699, image: '/watches/meridian.png', style: "Dual timezone, silver dial, traveler's watch", variants: ['Steel Bracelet', 'Steel/Gold Bracelet', 'Brown Leather'] },
+      { id: '4', name: 'Celestia Zenith', tagline: 'Rise Above', description: 'An exercise in minimalist perfection.', price: 999, image: '/watches/zenith.png', style: 'White dial, minimalist, everyday luxury', variants: ['White/Tan Leather', 'White/Black Leather', 'Silver Mesh'] },
+      { id: '5', name: 'Helios Titanis', tagline: 'Strength in Simplicity', description: 'Crafted from aerospace-grade titanium.', price: 1299, image: '/watches/titanis.png', style: 'Titanium case, sapphire crystal, sporty-minimal', variants: ['Titanium Bracelet', 'Titanium/Rubber', 'Black DLC'] },
+      { id: '6', name: 'Nova Première', tagline: 'Your First Impression', description: 'Your entry into the world of luxury.', price: 599, image: '/watches/premiere.png', style: 'Entry-level, clean design, accessible luxury', variants: ['Black Leather', 'Brown Leather', 'Navy NATO'] },
+    ];
+
+    for (const watch of watches) {
+      await prisma.watch.upsert({
+        where: { id: watch.id },
+        update: watch,
+        create: watch,
+      });
+    }
+
+    // Invalidate Redis cache if available
+    if (redis && redis.status === 'ready') {
+      await redis.del('watches_catalog');
+    }
+
+    res.json({ success: true, message: 'Database seeded with correct prices.' });
+  } catch (error) {
+    console.error('Seed error:', error);
+    res.status(500).json({ error: 'Failed to seed database.' });
+  }
+});
+
 app.get('/api/orders', requireAdmin, async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
