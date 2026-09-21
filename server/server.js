@@ -44,11 +44,16 @@ app.use(cors({
   credentials: true,
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    // Allow exact matches from the allowedOrigins list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
     }
-    return callback(null, true);
+    // Allow any Vercel preview/production deployment for this project
+    if (origin.endsWith('.vercel.app') && (origin.includes('aurelis') || origin.includes('peace-svg8s'))) {
+      return callback(null, true);
+    }
+    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+    return callback(new Error(msg), false);
   }
 }));
 
